@@ -13,3 +13,6 @@ Response Object
 ```
 { "rate": number, "isCache": boolean } 
 ```
+
+
+Cache logic is in `src/layers/cache.ts`

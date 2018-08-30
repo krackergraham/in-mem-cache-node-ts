@@ -4,7 +4,9 @@ export class CacheOptions {
   public minAge:number;
 
   /**
-   *
+   * Set cache size and minimum age of items before culling
+   * TTL is optional in that although tax rate changes are infrequent we may
+   * still wish expire items without restarting the service
    * @param {number} maxSize - maximum number of addresses to cache
    * @param {number} minAge - min age in minutes before item may be removed from cache if over capacity
    * @param {number} ttl - time to live in minutes - If set to 0 no TTL is computed
@@ -69,7 +71,7 @@ export default class Cache {
       value: value,
       expires: expires,
       hits: 0,
-      lastAccess: this.timeNow(),
+      lastAccess: timeNow,
     };
 
     this.data[key] = cacheItem;
@@ -86,6 +88,10 @@ export default class Cache {
     this.data = {};
   }
 
+  /**
+   * Check to see if cached item is expired and if so remove from in memory data store
+   * @param {string} key
+   */
   private checkIsExpired(key:string):void {
     if (this.isExpired(key)) {
       this.deleteByKey(key);
@@ -93,15 +99,19 @@ export default class Cache {
   }
 
   private isExpired(key:string):boolean {
-    const dataObj = this.data[key];
+    const cacheItem:CacheItem = this.data[key];
 
-    return dataObj != null && dataObj.expires > 0 && dataObj.expires < this.timeNow();
+    return cacheItem != null && cacheItem.expires > 0 && cacheItem.expires < this.timeNow();
   }
 
   private deleteByKey(key:string):void {
     delete this.data[key];
   }
 
+  /**
+   * Time in milliseconds since epoch
+   * @returns {number}
+   */
   private timeNow():number {
     return new Date().getTime();
   }
@@ -116,13 +126,14 @@ export default class Cache {
       return 0;
   }
 
-  private checkCacheSize() {
+  private checkCacheSize():void {
     const keys = Object.keys(this.data);
 
     if (keys.length < this.options.maxSize) return;
 
     // Don't remove objects that are less than the minimum "age"
-    // For high through put systems this should be monitored and configured accordingly
+    // For high throughput systems this should be monitored and configured accordingly
+    // For extreme throughput or concern about DoS attacks this can be set to 0
     const minTimeAlive = this.timeNow() - this.options.minAge;
 
     const sorted =
